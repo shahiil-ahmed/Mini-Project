@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 contract QualityCheckAndPayment {
-    enum QualityStatus { NotChecked, Approved, Rejected }
+    enum QualityStatus { NotChecked, Approved, Rejected, CorrectionSubmitted }
     enum PaymentStatus { NotPaid, Paid, Withheld }
 
     struct RoadWork {
@@ -12,6 +12,7 @@ contract QualityCheckAndPayment {
         uint256 paymentAmount;
         uint256 inspectionDate;
         string comments;
+        bool correctionRequested;
     }
 
     address public immutable organization;
@@ -20,11 +21,17 @@ contract QualityCheckAndPayment {
     bool public fundsLocked;
 
     event QualityChecked(QualityStatus status, string comments);
+    event CorrectionRequested(address contractor, string comments);
     event PaymentReleased(address contractor, uint256 amount);
     event PaymentWithheld(address contractor, string reason);
 
     modifier onlyOrganization() {
         require(msg.sender == organization, "Unauthorized: Only organization");
+        _;
+    }
+
+    modifier onlyContractor() {
+        require(msg.sender == contractor, "Unauthorized: Only contractor");
         _;
     }
 
@@ -40,17 +47,23 @@ contract QualityCheckAndPayment {
             payment: PaymentStatus.NotPaid,
             paymentAmount: msg.value,
             inspectionDate: 0,
-            comments: ""
+            comments: "",
+            correctionRequested: false
         });
         fundsLocked = true;
     }
 
     function checkQuality(bool isGood, string memory _comments) public onlyOrganization {
-        require(roadWork.quality == QualityStatus.NotChecked, "Quality already checked");
+        require(
+            roadWork.quality == QualityStatus.NotChecked || 
+            roadWork.quality == QualityStatus.CorrectionSubmitted,
+            "Quality already finalized"
+        );
         
         roadWork.quality = isGood ? QualityStatus.Approved : QualityStatus.Rejected;
         roadWork.inspectionDate = block.timestamp;
         roadWork.comments = _comments;
+        roadWork.correctionRequested = false;
         
         if (!isGood) {
             roadWork.payment = PaymentStatus.Withheld;
@@ -58,6 +71,17 @@ contract QualityCheckAndPayment {
         }
         
         emit QualityChecked(roadWork.quality, _comments);
+    }
+
+    function requestCorrection(string memory _comments) public onlyContractor {
+        require(roadWork.quality == QualityStatus.Rejected, "No rejection to correct");
+        require(!roadWork.correctionRequested, "Correction already requested");
+        
+        roadWork.quality = QualityStatus.CorrectionSubmitted;
+        roadWork.correctionRequested = true;
+        roadWork.comments = _comments;
+        
+        emit CorrectionRequested(msg.sender, _comments);
     }
 
     function releasePayment() public onlyOrganization {
@@ -78,7 +102,8 @@ contract QualityCheckAndPayment {
         PaymentStatus,
         uint256,
         uint256,
-        string memory
+        string memory,
+        bool
     ) {
         return (
             roadWork.sectionName,
@@ -86,7 +111,8 @@ contract QualityCheckAndPayment {
             roadWork.payment,
             roadWork.paymentAmount,
             roadWork.inspectionDate,
-            roadWork.comments
+            roadWork.comments,
+            roadWork.correctionRequested
         );
     }
 

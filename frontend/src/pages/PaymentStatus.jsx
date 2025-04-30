@@ -42,22 +42,20 @@ const PaymentStatus = () => {
       const provider = new BrowserProvider(window.ethereum);
       const contract = new Contract(qualityContractAddress, qualityContractABI, provider);
 
-      // Fetch all data
       const status = await contract.getRoadStatus();
       const balance = await contract.contractBalance();
 
-      // Convert BigInt to normal numbers/strings
       setRoadStatus({
         sectionName: status[0],
-        quality: Number(status[1]), // Convert BigInt → Number
-        payment: Number(status[2]), // Convert BigInt → Number
-        amount: ethers.formatEther(status[3]), // Convert Wei → ETH string
+        quality: Number(status[1]),
+        payment: Number(status[2]),
+        amount: ethers.formatEther(status[3]),
         inspectionDate: new Date(Number(status[4]) * 1000),
-        comments: status[5]
+        comments: status[5],
+        correctionRequested: status[6]
       });
 
-      setContractBalance(ethers.formatEther(balance)); // Wei → ETH
-
+      setContractBalance(ethers.formatEther(balance));
     } catch (err) {
       console.error("Error fetching data:", err);
       setMessage({ text: "Failed to load contract data", type: "error" });
@@ -99,13 +97,13 @@ const PaymentStatus = () => {
       case 0: return <span className="badge badge-gray">Not Checked</span>;
       case 1: return <span className="badge badge-green">Approved</span>;
       case 2: return <span className="badge badge-red">Rejected</span>;
+      case 3: return <span className="badge badge-blue">Correction Submitted</span>;
       default: return <span className="badge">Unknown</span>;
     }
   };
 
   const renderPaymentBadge = (status) => {
-    // 'status' is now a normal number (0, 1, or 2)
-    switch(status) {
+    switch (status) {
       case 0: return <span className="badge badge-gray">Not Paid</span>;
       case 1: return <span className="badge badge-green">Paid</span>;
       case 2: return <span className="badge badge-orange">Withheld</span>;
@@ -115,14 +113,13 @@ const PaymentStatus = () => {
 
   const canReleasePayment = () => {
     if (!roadStatus) return false;
-
     return (
-      roadStatus.quality === 1 &&       // Quality must be Approved
-      roadStatus.payment === 0 &&       // Payment must be Not Paid
-      parseFloat(contractBalance) >= parseFloat(roadStatus.amount) // Enough funds
+      roadStatus.quality === 1 &&
+      roadStatus.payment === 0 &&
+      parseFloat(contractBalance) >= parseFloat(roadStatus.amount)
     );
   };
- 
+
   return (
     <div className="payment-container">
       <h2>💰 Payment Management</h2>
@@ -164,14 +161,15 @@ const PaymentStatus = () => {
 
               {roadStatus.comments && (
                 <div className="comments-section">
-                  <h4>Inspection Notes</h4>
+                  <h4>Inspector Comments</h4>
                   <p>{roadStatus.comments}</p>
                 </div>
               )}
+
               {roadStatus && parseFloat(contractBalance) < parseFloat(roadStatus.amount) && (
                 <div className="alert alert-warning">
                   ⚠️ Insufficient contract balance! Needs additional:{" "}
-                  {parseFloat(roadStatus.amount) - parseFloat(contractBalance)} ETH
+                  {(parseFloat(roadStatus.amount) - parseFloat(contractBalance)).toFixed(4)} ETH
                 </div>
               )}
 
@@ -182,14 +180,6 @@ const PaymentStatus = () => {
               >
                 {isLoading ? "Processing..." : "Release Payment"}
               </button>
-
-              {!canReleasePayment() && roadStatus.payment === 0 && (
-                <p className="warning">
-                  {roadStatus.quality === 2
-                    ? "Payment withheld due to rejected quality"
-                    : "Quality must be approved before payment release"}
-                </p>
-              )}
             </div>
           ) : (
             <p>No contract data available</p>

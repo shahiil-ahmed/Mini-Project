@@ -131,7 +131,7 @@ export const attendanceABI = [
 		"type": "function"
 	}
 ];
-export const qualityContractAddress  = "0xC51Eb10B985926Aa36D0854842e5358557d4416c";
+export const qualityContractAddress  = "0xC6A7449Bb07810213B086C945485C6FE9F423D4D";
 export const qualityContractABI = [
 	{
 		"inputs": [
@@ -166,6 +166,25 @@ export const qualityContractABI = [
 		],
 		"stateMutability": "payable",
 		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "contractor",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "comments",
+				"type": "string"
+			}
+		],
+		"name": "CorrectionRequested",
+		"type": "event"
 	},
 	{
 		"anonymous": false,
@@ -227,6 +246,19 @@ export const qualityContractABI = [
 	{
 		"inputs": [],
 		"name": "releasePayment",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_comments",
+				"type": "string"
+			}
+		],
+		"name": "requestCorrection",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -303,6 +335,11 @@ export const qualityContractABI = [
 				"internalType": "string",
 				"name": "",
 				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",
@@ -354,6 +391,11 @@ export const qualityContractABI = [
 				"internalType": "string",
 				"name": "comments",
 				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "correctionRequested",
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",

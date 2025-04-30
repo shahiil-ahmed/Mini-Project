@@ -9,33 +9,22 @@ const QualityCheck = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [projectStatus, setProjectStatus] = useState(null);
   const [comments, setComments] = useState("");
+  const [correctionComments, setCorrectionComments] = useState("");
   const [contractBalance, setContractBalance] = useState("0");
 
   useEffect(() => {
-    checkWalletConnection();
-    if (wallet) {
+    if (window.ethereum?.selectedAddress) {
+      setWallet(window.ethereum.selectedAddress);
       fetchContractData();
     }
   }, [wallet]);
 
-  const checkWalletConnection = async () => {
-    if (window.ethereum?.selectedAddress) {
-      setWallet(window.ethereum.selectedAddress);
-    }
-  };
-
   const connectWallet = async () => {
     try {
-      if (!window.ethereum) {
-        setMessage("Please install MetaMask!");
-        return;
-      }
-      const accounts = await window.ethereum.request({ 
-        method: "eth_requestAccounts" 
-      });
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
       setWallet(accounts[0]);
     } catch (err) {
-      setMessage(`Connection failed: ${err.message}`);
+      setMessage(`Wallet connection failed: ${err.message}`);
     }
   };
 
@@ -43,47 +32,73 @@ const QualityCheck = () => {
     try {
       const provider = new BrowserProvider(window.ethereum);
       const contract = new Contract(qualityContractAddress, qualityContractABI, provider);
-      
+
       const status = await contract.getRoadStatus();
       const balance = await contract.contractBalance();
-      
+
       setProjectStatus({
         sectionName: status[0],
-        quality: status[1],
-        payment: status[2],
+        quality: Number(status[1]),
+        payment: Number(status[2]),
         amount: ethers.formatEther(status[3]),
-        inspectionDate: new Date(Number(status[4]) * 1000).toLocaleDateString(),
-        comments: status[5]
+        inspectionDate: status[4] > 0 ? new Date(Number(status[4]) * 1000).toLocaleDateString() : "",
+        comments: status[5],
+        correctionRequested: status[6]
       });
-      
+
       setContractBalance(ethers.formatEther(balance));
     } catch (err) {
-      console.error("Error fetching data:", err);
-      setMessage("Failed to load contract data");
+      console.error("Fetch error:", err);
+      setMessage("Error fetching contract data.");
     }
   };
 
   const handleQualityCheck = async (isApproved) => {
     if (!comments.trim()) {
-      setMessage("Please enter inspection comments");
+      setMessage("Enter inspection comments.");
       return;
     }
 
-    setIsLoading(true);
-    setMessage("");
-    
     try {
+      setIsLoading(true);
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new Contract(qualityContractAddress, qualityContractABI, signer);
 
       const tx = await contract.checkQuality(isApproved, comments);
       await tx.wait();
-      
-      setMessage(`Quality ${isApproved ? "approved" : "rejected"} successfully!`);
+
+      setMessage(`✅ Quality ${isApproved ? "approved" : "rejected"}`);
+      setComments("");
       fetchContractData();
     } catch (err) {
-      console.error(err);
+      console.error("Quality check error:", err);
+      setMessage(`Error: ${err.reason || err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCorrectionRequest = async () => {
+    if (!correctionComments.trim()) {
+      setMessage("Enter correction details.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(qualityContractAddress, qualityContractABI, signer);
+
+      const tx = await contract.requestCorrection(correctionComments);
+      await tx.wait();
+
+      setMessage("✅ Correction submitted.");
+      setCorrectionComments("");
+      fetchContractData();
+    } catch (err) {
+      console.error("Correction error:", err);
       setMessage(`Error: ${err.reason || err.message}`);
     } finally {
       setIsLoading(false);
@@ -91,139 +106,113 @@ const QualityCheck = () => {
   };
 
   const handleReleasePayment = async () => {
-    setIsLoading(true);
-    setMessage("");
-    
     try {
+      setIsLoading(true);
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new Contract(qualityContractAddress, qualityContractABI, signer);
 
       const tx = await contract.releasePayment();
       await tx.wait();
-      
-      setMessage("Payment released successfully!");
+
+      setMessage("💰 Payment released successfully.");
       fetchContractData();
     } catch (err) {
-      console.error(err);
+      console.error("Payment error:", err);
       setMessage(`Error: ${err.reason || err.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const renderStatusBadge = (status) => {
-    switch(status) {
-      case 0: return <span className="badge badge-gray">Not Checked</span>;
-      case 1: return <span className="badge badge-green">Approved</span>;
-      case 2: return <span className="badge badge-red">Rejected</span>;
-      default: return <span className="badge">Unknown</span>;
-    }
-  };
-
-  const renderPaymentBadge = (status) => {
-    switch(status) {
-      case 0: return <span className="badge badge-gray">Not Paid</span>;
-      case 1: return <span className="badge badge-green">Paid</span>;
-      case 2: return <span className="badge badge-orange">Withheld</span>;
-      default: return <span className="badge">Unknown</span>;
-    }
+  const renderBadge = (value, labels, classes) => {
+    return <span className={`badge ${classes[value] || "badge-gray"}`}>{labels[value] || "Unknown"}</span>;
   };
 
   return (
     <div className="quality-container">
       <h2>🏗️ Road Construction Quality Control</h2>
-      
+
       {!wallet ? (
-        <button className="connect-btn" onClick={connectWallet}>
-          Connect Wallet
-        </button>
+        <button className="connect-btn" onClick={connectWallet}>Connect Wallet</button>
       ) : (
         <>
-          <div className="wallet-info">
-            Connected as: <span>{wallet.slice(0, 6)}...{wallet.slice(-4)}</span>
-          </div>
+          <div className="wallet-info">Connected: {wallet.slice(0, 6)}...{wallet.slice(-4)}</div>
 
           {projectStatus && (
-            <div className="project-card">
-              <h3>{projectStatus.sectionName}</h3>
-              <div className="status-grid">
-                <div>
-                  <strong>Quality Status:</strong>
-                  {renderStatusBadge(projectStatus.quality)}
+            <>
+              <div className="project-card">
+                <h3>{projectStatus.sectionName}</h3>
+                <div className="status-grid">
+                  <div><strong>Quality:</strong> {renderBadge(projectStatus.quality, ["Not Checked", "Approved", "Rejected", "Correction Submitted"], ["badge-gray", "badge-green", "badge-red", "badge-blue"])}</div>
+                  <div><strong>Payment:</strong> {renderBadge(projectStatus.payment, ["Not Paid", "Paid", "Withheld"], ["badge-gray", "badge-green", "badge-orange"])}</div>
+                  <div><strong>Contract Value:</strong> {projectStatus.amount} ETH</div>
+                  <div><strong>Balance:</strong> {contractBalance} ETH</div>
+                  {projectStatus.inspectionDate && <div><strong>Last Inspection:</strong> {projectStatus.inspectionDate}</div>}
                 </div>
-                <div>
-                  <strong>Payment Status:</strong>
-                  {renderPaymentBadge(projectStatus.payment)}
-                </div>
-                <div>
-                  <strong>Contract Value:</strong>
-                  {projectStatus.amount} ETH
-                </div>
-                <div>
-                  <strong>Remaining Balance:</strong>
-                  {contractBalance} ETH
-                </div>
-                {projectStatus.inspectionDate !== "1/1/1970" && (
-                  <div>
-                    <strong>Last Inspection:</strong>
-                    {projectStatus.inspectionDate}
+
+                {projectStatus.comments && (
+                  <div className="comments-section">
+                    <h4>Inspection Comments</h4>
+                    <p>{projectStatus.comments}</p>
+                  </div>
+                )}
+
+                {projectStatus.quality === 2 && !projectStatus.correctionRequested && (
+                  <div className="correction-panel">
+                    <textarea
+                      value={correctionComments}
+                      onChange={(e) => setCorrectionComments(e.target.value)}
+                      placeholder="Correction details..."
+                      className="comments-input"
+                    />
+                    <button onClick={handleCorrectionRequest} disabled={isLoading} className="btn-correct">
+                      {isLoading ? "Processing..." : "Submit Correction"}
+                    </button>
                   </div>
                 )}
               </div>
-              
-              {projectStatus.comments && (
-                <div className="comments-section">
-                  <h4>Inspection Notes</h4>
-                  <p>{projectStatus.comments}</p>
+
+              <div className="action-panel">
+                <h3>Inspector Actions</h3>
+                <textarea
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  placeholder="Inspection comments..."
+                  className="comments-input"
+                />
+                <div className="button-group">
+                  <button
+                    onClick={() => handleQualityCheck(true)}
+                    disabled={isLoading || !(projectStatus.quality === 0 || projectStatus.quality === 3)}
+                    className="btn-approve"
+                  >
+                    Approve ✅
+                  </button>
+                  <button
+                    onClick={() => handleQualityCheck(false)}
+                    disabled={isLoading || !(projectStatus.quality === 0 || projectStatus.quality === 3)}
+                    className="btn-reject"
+                  >
+                    Reject ❌
+                  </button>
                 </div>
+              </div>
+
+              {projectStatus.quality === 1 && projectStatus.payment === 0 && (
+                <button className="btn-pay" onClick={handleReleasePayment} disabled={isLoading}>
+                  {isLoading ? "Processing..." : "Release Payment 💸"}
+                </button>
               )}
-            </div>
+            </>
           )}
 
-          <div className="action-panel">
-            <h3>Quality Inspection</h3>
-            <textarea
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              placeholder="Enter inspection comments..."
-              className="comments-input"
-            />
-            
-            <div className="button-group">
-              <button 
-                onClick={() => handleQualityCheck(true)} 
-                disabled={isLoading}
-                className="btn-approve"
-              >
-                {isLoading ? "Processing..." : "Approve Quality ✅"}
-              </button>
-              <button 
-                onClick={() => handleQualityCheck(false)} 
-                disabled={isLoading}
-                className="btn-reject"
-              >
-                {isLoading ? "Processing..." : "Reject Quality ❌"}
-              </button>
+          {message && (
+            <div className={`message ${message.includes("✅") || message.includes("successfully") ? "success" : "error"}`}>
+              {message}
             </div>
-
-            {projectStatus?.quality === 1 && projectStatus.payment === 0 && (
-              <button 
-                onClick={handleReleasePayment} 
-                disabled={isLoading}
-                className="btn-pay"
-              >
-                {isLoading ? "Processing..." : "Release Payment 💰"}
-              </button>
-            )}
-          </div>
+          )}
         </>
-      )}
-
-      {message && (
-        <div className={`message ${message.includes("✅") ? "success" : "error"}`}>
-          {message}
-        </div>
       )}
     </div>
   );
