@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BrowserProvider, Contract, ethers } from "ethers";
+import { ethers } from "ethers";
 import { attendanceAddress, attendanceABI } from "../contractConfig";
 
 const Attendance = () => {
@@ -37,19 +37,20 @@ const Attendance = () => {
 
     setIsLoading(true);
     try {
-      const provider = new BrowserProvider(window.ethereum);
+      const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const contract = new Contract(attendanceAddress, attendanceABI, signer);
+      const contract = new ethers.Contract(attendanceAddress, attendanceABI, signer);
 
       const sessionHash = sessionToBytes32(session);
       const tx = await contract.markAttendance(parseInt(workerId), sessionHash);
-      
       await tx.wait();
+
       alert(`✅ Attendance marked for Worker ${workerId} (${session})`);
       checkAttendance();
     } catch (err) {
       console.error("Transaction failed:", err);
-      alert(`Error: ${err.reason || err.message}`);
+      const reason = err?.info?.error?.message || err?.reason || err?.message;
+      alert(`Error: ${reason}`);
     } finally {
       setIsLoading(false);
     }
@@ -57,14 +58,16 @@ const Attendance = () => {
 
   const checkAttendance = async () => {
     if (!workerId) return;
-    
+
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const contract = new Contract(attendanceAddress, attendanceABI, provider);
-      
-      const today = Math.floor(Date.now() / 86400000) * 86400;
-      const [morning, evening] = await contract.getAttendance(workerId, today);
-      
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(attendanceAddress, attendanceABI, provider);
+
+      const nowInSeconds = Math.floor(Date.now() / 1000);
+      const normalizedDate = nowInSeconds - (nowInSeconds % 86400);
+
+      const [morning, evening] = await contract.getAttendance(workerId, normalizedDate);
+
       setAttendanceStatus(
         `Today's attendance: ${morning ? "☀️ Morning" : ""} ${
           evening ? "🌙 Evening" : ""
@@ -79,7 +82,7 @@ const Attendance = () => {
   return (
     <div style={styles.container}>
       <h2 style={styles.header}>🏗️ Worker Attendance Portal</h2>
-      
+
       {!walletAddress ? (
         <button style={styles.button} onClick={connectWallet}>
           Connect MetaMask
@@ -109,8 +112,8 @@ const Attendance = () => {
               <option value="evening">Evening Shift</option>
             </select>
 
-            <button 
-              onClick={markAttendance} 
+            <button
+              onClick={markAttendance}
               style={styles.button}
               disabled={isLoading}
             >
@@ -127,7 +130,6 @@ const Attendance = () => {
   );
 };
 
-// Style object
 const styles = {
   container: {
     maxWidth: "600px",

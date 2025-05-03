@@ -53,25 +53,27 @@ contract QualityCheckAndPayment {
         fundsLocked = true;
     }
 
-    function checkQuality(bool isGood, string memory _comments) public onlyOrganization {
-        require(
-            roadWork.quality == QualityStatus.NotChecked || 
-            roadWork.quality == QualityStatus.CorrectionSubmitted,
-            "Quality already finalized"
-        );
-        
-        roadWork.quality = isGood ? QualityStatus.Approved : QualityStatus.Rejected;
-        roadWork.inspectionDate = block.timestamp;
-        roadWork.comments = _comments;
-        roadWork.correctionRequested = false;
-        
-        if (!isGood) {
-            roadWork.payment = PaymentStatus.Withheld;
-            emit PaymentWithheld(contractor, _comments);
-        }
-        
-        emit QualityChecked(roadWork.quality, _comments);
+   function checkQuality(bool isGood, string memory _comments) public onlyOrganization {
+    require(
+        roadWork.quality == QualityStatus.NotChecked || 
+        roadWork.quality == QualityStatus.CorrectionSubmitted,
+        "Quality already finalized"
+    );
+    
+    roadWork.quality = isGood ? QualityStatus.Approved : QualityStatus.Rejected;
+    roadWork.inspectionDate = block.timestamp;
+    roadWork.comments = _comments;
+    roadWork.correctionRequested = false;
+    
+    if (isGood) {
+        roadWork.payment = PaymentStatus.NotPaid;
+    } else {
+        roadWork.payment = PaymentStatus.Withheld;
+        emit PaymentWithheld(contractor, _comments);
     }
+    
+    emit QualityChecked(roadWork.quality, _comments);
+}
 
     function requestCorrection(string memory _comments) public onlyContractor {
         require(roadWork.quality == QualityStatus.Rejected, "No rejection to correct");

@@ -114,11 +114,11 @@ const PaymentStatus = () => {
   const canReleasePayment = () => {
     if (!roadStatus) return false;
     return (
-      roadStatus.quality === 1 &&
-      roadStatus.payment === 0 &&
-      parseFloat(contractBalance) >= parseFloat(roadStatus.amount)
+        roadStatus.quality === 1 &&  // Quality is approved
+        roadStatus.payment !== 1 &&  // Payment is not already paid
+        parseFloat(contractBalance) >= parseFloat(roadStatus.amount)
     );
-  };
+};
 
   return (
     <div className="payment-container">

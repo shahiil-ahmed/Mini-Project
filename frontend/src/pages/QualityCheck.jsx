@@ -199,7 +199,7 @@ const QualityCheck = () => {
                 </div>
               </div>
 
-              {projectStatus.quality === 1 && projectStatus.payment === 0 && (
+              {projectStatus.quality === 1 && projectStatus.payment !== 1 && (  // Changed condition
                 <button className="btn-pay" onClick={handleReleasePayment} disabled={isLoading}>
                   {isLoading ? "Processing..." : "Release Payment 💸"}
                 </button>

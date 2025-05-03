@@ -1,5 +1,5 @@
-export const attendanceAddress = "0xC57d9Dc4eA5aeeE209aA88EF39b6eA9d44A70d4d";
-export const attendanceABI = [
+export const attendanceAddress = "0x07865e6AE0263A98f5B3B66f89E22013575c989D";
+export const attendanceABI =[
 	{
 		"inputs": [],
 		"stateMutability": "nonpayable",
@@ -35,24 +35,6 @@ export const attendanceABI = [
 		],
 		"name": "AttendanceMarked",
 		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "workerId",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "session",
-				"type": "bytes32"
-			}
-		],
-		"name": "markAttendance",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
 	},
 	{
 		"inputs": [
@@ -129,9 +111,27 @@ export const attendanceABI = [
 		],
 		"stateMutability": "view",
 		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "workerId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "session",
+				"type": "bytes32"
+			}
+		],
+		"name": "markAttendance",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
 	}
-];
-export const qualityContractAddress  = "0xC6A7449Bb07810213B086C945485C6FE9F423D4D";
+]
+export const qualityContractAddress  = "0x0f1Dce0349E33e04949A4Ce74304A50F9BA3e71e";
 export const qualityContractABI = [
 	{
 		"inputs": [
@@ -401,4 +401,4 @@ export const qualityContractABI = [
 		"stateMutability": "view",
 		"type": "function"
 	}
-];
+]
