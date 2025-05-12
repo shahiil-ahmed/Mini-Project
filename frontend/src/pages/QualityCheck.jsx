@@ -1,221 +1,265 @@
-import React, { useState, useEffect } from "react";
-import { BrowserProvider, Contract, ethers } from "ethers";
-import { qualityContractAddress, qualityContractABI } from "../contractConfig";
-import "./QualityCheck.css";
+import React, { useState, useEffect } from 'react';
+import { BrowserProvider, Contract, ethers } from 'ethers';
+import { qualityContractAddress, qualityContractABI } from '../contractConfig';
+import './QualityCheck.css';
 
 const QualityCheck = () => {
-  const [wallet, setWallet] = useState("");
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [projectStatus, setProjectStatus] = useState(null);
-  const [comments, setComments] = useState("");
-  const [correctionComments, setCorrectionComments] = useState("");
-  const [contractBalance, setContractBalance] = useState("0");
+    const [status, setStatus] = useState(null);
+    const [inspectionComments, setInspectionComments] = useState('');
+    const [correctionDetails, setCorrectionDetails] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [notification, setNotification] = useState('');
+    const [currentAccount, setCurrentAccount] = useState('');
+    const [isContractorAccount, setIsContractorAccount] = useState(false);
 
-  useEffect(() => {
-    if (window.ethereum?.selectedAddress) {
-      setWallet(window.ethereum.selectedAddress);
-      fetchContractData();
-    }
-  }, [wallet]);
+    useEffect(() => {
+        const init = async () => {
+            if (window.ethereum?.selectedAddress) {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                setCurrentAccount(accounts[0]);
+                await fetchContractData();
+            }
+        };
+        init();
 
-  const connectWallet = async () => {
-    try {
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      setWallet(accounts[0]);
-    } catch (err) {
-      setMessage(`Wallet connection failed: ${err.message}`);
-    }
-  };
+        const handleAccountsChanged = (accounts) => {
+            if (accounts.length > 0) {
+                setCurrentAccount(accounts[0]);
+                fetchContractData();
+            }
+        };
 
-  const fetchContractData = async () => {
-    try {
-      const provider = new BrowserProvider(window.ethereum);
-      const contract = new Contract(qualityContractAddress, qualityContractABI, provider);
+        window.ethereum?.on('accountsChanged', handleAccountsChanged);
+        return () => window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
+    }, []);
 
-      const status = await contract.getRoadStatus();
-      const balance = await contract.contractBalance();
+    useEffect(() => {
+        const checkContractor = async () => {
+            if (currentAccount) {
+                const isContractorRes = await isContractor();
+                setIsContractorAccount(isContractorRes);
+            }
+        };
+        checkContractor();
+    }, [currentAccount, status]);
 
-      setProjectStatus({
-        sectionName: status[0],
-        quality: Number(status[1]),
-        payment: Number(status[2]),
-        amount: ethers.formatEther(status[3]),
-        inspectionDate: status[4] > 0 ? new Date(Number(status[4]) * 1000).toLocaleDateString() : "",
-        comments: status[5],
-        correctionRequested: status[6]
-      });
+    const fetchContractData = async () => {
+        try {
+            setIsLoading(true);
+            const provider = new BrowserProvider(window.ethereum);
+            const contract = new Contract(qualityContractAddress, qualityContractABI, provider);
+            const result = await contract.getRoadStatus();
 
-      setContractBalance(ethers.formatEther(balance));
-    } catch (err) {
-      console.error("Fetch error:", err);
-      setMessage("Error fetching contract data.");
-    }
-  };
+            const defaultInspectors = ['0x0000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000'];
 
-  const handleQualityCheck = async (isApproved) => {
-    if (!comments.trim()) {
-      setMessage("Enter inspection comments.");
-      return;
-    }
+            const inspectors = result[5]?.length === 3
+                ? result[5]
+                : result[5]?.length > 3
+                ? result[5].slice(0, 3)
+                : defaultInspectors;
 
-    try {
-      setIsLoading(true);
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new Contract(qualityContractAddress, qualityContractABI, signer);
+            setStatus({
+                sectionName: result[0],
+                quality: Number(result[1]),
+                totalAmount: ethers.formatEther(result[2]),
+                amountReleased: ethers.formatEther(result[3]),
+                currentStage: Number(result[4]),
+                inspectors: inspectors,
+                checklist: result[6],
+                comments: result[7],
+                correctionRequested: result[8]
+            });
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            setNotification(`Error: ${error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-      const tx = await contract.checkQuality(isApproved, comments);
-      await tx.wait();
+    const isCurrentInspector = () => {
+        if (!status || !currentAccount || status.currentStage === 3) return false;
+        const currentInspector = status.inspectors[status.currentStage]?.toLowerCase();
+        return currentInspector && currentAccount.toLowerCase() === currentInspector;
+    };
 
-      setMessage(`✅ Quality ${isApproved ? "approved" : "rejected"}`);
-      setComments("");
-      fetchContractData();
-    } catch (err) {
-      console.error("Quality check error:", err);
-      setMessage(`Error: ${err.reason || err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const isContractor = async () => {
+        if (!status || !currentAccount) return false;
+        try {
+            const provider = new BrowserProvider(window.ethereum);
+            const contract = new Contract(qualityContractAddress, qualityContractABI, provider);
+            const contractorAddr = await contract.contractor();
+            return currentAccount.toLowerCase() === contractorAddr.toLowerCase();
+        } catch {
+            return false;
+        }
+    };
 
-  const handleCorrectionRequest = async () => {
-    if (!correctionComments.trim()) {
-      setMessage("Enter correction details.");
-      return;
-    }
+    const handleQualityCheck = async (approved) => {
+        try {
+            setIsLoading(true);
+            const provider = new BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new Contract(qualityContractAddress, qualityContractABI, signer);
 
-    try {
-      setIsLoading(true);
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new Contract(qualityContractAddress, qualityContractABI, signer);
+            const tx = await contract.checkQuality(
+                {
+                    materialQuality: approved,
+                    safetyCompliance: approved,
+                    designSpecs: approved,
+                    environmentalImpact: approved
+                },
+                inspectionComments
+            );
+            await tx.wait();
 
-      const tx = await contract.requestCorrection(correctionComments);
-      await tx.wait();
+            setNotification(`✅ Quality ${approved ? "approved" : "rejected"}`);
+            setInspectionComments('');
+            await fetchContractData();
+        } catch (error) {
+            console.error("Transaction failed:", error);
+            setNotification(`❌ Error: ${error.reason || error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-      setMessage("✅ Correction submitted.");
-      setCorrectionComments("");
-      fetchContractData();
-    } catch (err) {
-      console.error("Correction error:", err);
-      setMessage(`Error: ${err.reason || err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const handleSubmitCorrection = async () => {
+        try {
+            setIsLoading(true);
+            const provider = new BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new Contract(qualityContractAddress, qualityContractABI, signer);
 
-  const handleReleasePayment = async () => {
-    try {
-      setIsLoading(true);
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new Contract(qualityContractAddress, qualityContractABI, signer);
+            const tx = await contract.submitCorrection(correctionDetails);
+            await tx.wait();
 
-      const tx = await contract.releasePayment();
-      await tx.wait();
+            setNotification("✅ Correction submitted");
+            setCorrectionDetails('');
+            await fetchContractData();
+        } catch (error) {
+            console.error("Correction failed:", error);
+            setNotification(`❌ Error: ${error.reason || error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-      setMessage("💰 Payment released successfully.");
-      fetchContractData();
-    } catch (err) {
-      console.error("Payment error:", err);
-      setMessage(`Error: ${err.reason || err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const renderInspectorActions = () => {
+        if (status.currentStage === 3) return null;
+        if (!isCurrentInspector()) return null;
+        if (status.quality !== 0 && status.quality !== 3) return null;
 
-  const renderBadge = (value, labels, classes) => {
-    return <span className={`badge ${classes[value] || "badge-gray"}`}>{labels[value] || "Unknown"}</span>;
-  };
-
-  return (
-    <div className="quality-container">
-      <h2>🏗️ Road Construction Quality Control</h2>
-
-      {!wallet ? (
-        <button className="connect-btn" onClick={connectWallet}>Connect Wallet</button>
-      ) : (
-        <>
-          <div className="wallet-info">Connected: {wallet.slice(0, 6)}...{wallet.slice(-4)}</div>
-
-          {projectStatus && (
-            <>
-              <div className="project-card">
-                <h3>{projectStatus.sectionName}</h3>
-                <div className="status-grid">
-                  <div><strong>Quality:</strong> {renderBadge(projectStatus.quality, ["Not Checked", "Approved", "Rejected", "Correction Submitted"], ["badge-gray", "badge-green", "badge-red", "badge-blue"])}</div>
-                  <div><strong>Payment:</strong> {renderBadge(projectStatus.payment, ["Not Paid", "Paid", "Withheld"], ["badge-gray", "badge-green", "badge-orange"])}</div>
-                  <div><strong>Contract Value:</strong> {projectStatus.amount} ETH</div>
-                  <div><strong>Balance:</strong> {contractBalance} ETH</div>
-                  {projectStatus.inspectionDate && <div><strong>Last Inspection:</strong> {projectStatus.inspectionDate}</div>}
+        return (
+            <div className="inspector-actions">
+                <h4>Stage {status.currentStage + 1} Inspection</h4>
+                <div className="payment-details">
+                    Amount to release: {["25%", "25%", "50%"][status.currentStage]}
                 </div>
-
-                {projectStatus.comments && (
-                  <div className="comments-section">
-                    <h4>Inspection Comments</h4>
-                    <p>{projectStatus.comments}</p>
-                  </div>
-                )}
-
-                {projectStatus.quality === 2 && !projectStatus.correctionRequested && (
-                  <div className="correction-panel">
-                    <textarea
-                      value={correctionComments}
-                      onChange={(e) => setCorrectionComments(e.target.value)}
-                      placeholder="Correction details..."
-                      className="comments-input"
-                    />
-                    <button onClick={handleCorrectionRequest} disabled={isLoading} className="btn-correct">
-                      {isLoading ? "Processing..." : "Submit Correction"}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="action-panel">
-                <h3>Inspector Actions</h3>
                 <textarea
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
-                  placeholder="Inspection comments..."
-                  className="comments-input"
+                    value={inspectionComments}
+                    onChange={(e) => setInspectionComments(e.target.value)}
+                    placeholder="Enter inspection comments..."
+                    disabled={isLoading}
                 />
                 <div className="button-group">
-                  <button
-                    onClick={() => handleQualityCheck(true)}
-                    disabled={isLoading || !(projectStatus.quality === 0 || projectStatus.quality === 3)}
-                    className="btn-approve"
-                  >
-                    Approve ✅
-                  </button>
-                  <button
-                    onClick={() => handleQualityCheck(false)}
-                    disabled={isLoading || !(projectStatus.quality === 0 || projectStatus.quality === 3)}
-                    className="btn-reject"
-                  >
-                    Reject ❌
-                  </button>
+                    <button 
+                        onClick={() => handleQualityCheck(true)}
+                        disabled={isLoading}
+                        className="approve-btn"
+                    >
+                        Approve
+                    </button>
+                    <button 
+                        onClick={() => handleQualityCheck(false)}
+                        disabled={isLoading}
+                        className="reject-btn"
+                    >
+                        Reject
+                    </button>
                 </div>
-              </div>
-
-              {projectStatus.quality === 1 && projectStatus.payment !== 1 && (  // Changed condition
-                <button className="btn-pay" onClick={handleReleasePayment} disabled={isLoading}>
-                  {isLoading ? "Processing..." : "Release Payment 💸"}
-                </button>
-              )}
-            </>
-          )}
-
-          {message && (
-            <div className={`message ${message.includes("✅") || message.includes("successfully") ? "success" : "error"}`}>
-              {message}
             </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+        );
+    };
+
+    const renderCorrectionForm = () => {
+        if (status.quality !== 2) return null;
+        if (!isContractorAccount) return null;
+
+        return (
+            <div className="correction-panel">
+                <h4>Submit Correction</h4>
+                <div className="rejection-reason">
+                    <strong>Rejection Reason:</strong> {status.comments}
+                </div>
+                <textarea
+                    value={correctionDetails}
+                    onChange={(e) => setCorrectionDetails(e.target.value)}
+                    placeholder="Describe your corrections..."
+                    disabled={isLoading}
+                />
+                <button 
+                    onClick={handleSubmitCorrection}
+                    disabled={isLoading || !correctionDetails.trim()}
+                    className="correction-btn"
+                >
+                    {isLoading ? "Submitting..." : "Submit Correction"}
+                </button>
+            </div>
+        );
+    };
+
+    const getStageName = () => {
+        return ["First", "Second", "Final", "Completed"][status.currentStage] || "Unknown";
+    };
+
+    const getStatusText = () => {
+        return ["Not Checked", "Approved", "Rejected", "Correction Submitted"][status.quality] || "Unknown";
+    };
+
+    return (
+        <div className="quality-container">
+            <h2>🏗️ Construction Quality Control</h2>
+            
+            {notification && (
+                <div className={`notification ${notification.includes("✅") ? "success" : "error"}`}>
+                    {notification}
+                </div>
+            )}
+
+            {status ? (
+                <>
+                    <div className="status-card">
+                        <h3>{status.sectionName}</h3>
+                        <div className="status-grid">
+                            <div><strong>Stage:</strong> {getStageName()}</div>
+                            <div><strong>Status:</strong> {getStatusText()}</div>
+                            <div><strong>Total:</strong> {status.totalAmount} ETH</div>
+                            <div><strong>Released:</strong> {status.amountReleased} ETH</div>
+                            {status.currentStage === 3 && (
+                                <div className="completion-badge">
+                                    <span className="badge-green">Project Completed</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {renderInspectorActions()}
+                    {renderCorrectionForm()}
+
+                    {status.currentStage === 3 && (
+                        <div className="completion-message">
+                            <h4>🎉 Project Successfully Completed!</h4>
+                            <p>All inspections passed and payments released.</p>
+                            <p>Final amount released: {status.amountReleased} ETH</p>
+                        </div>
+                    )}
+                </>
+            ) : (
+                <div className="loading-spinner">Loading project data...</div>
+            )}
+        </div>
+    );
 };
 
 export default QualityCheck;

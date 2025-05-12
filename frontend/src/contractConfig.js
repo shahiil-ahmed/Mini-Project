@@ -131,26 +131,8 @@ export const attendanceABI =[
 		"type": "function"
 	}
 ]
-export const qualityContractAddress  = "0x0f1Dce0349E33e04949A4Ce74304A50F9BA3e71e";
-export const qualityContractABI = [
-	{
-		"inputs": [
-			{
-				"internalType": "bool",
-				"name": "isGood",
-				"type": "bool"
-			},
-			{
-				"internalType": "string",
-				"name": "_comments",
-				"type": "string"
-			}
-		],
-		"name": "checkQuality",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
+export const qualityContractAddress  = "0x58Ec404e8ad797cA58459781B316bE12Ba9c2983";
+export const qualityContractABI =[
 	{
 		"inputs": [
 			{
@@ -162,6 +144,11 @@ export const qualityContractABI = [
 				"internalType": "string",
 				"name": "_sectionName",
 				"type": "string"
+			},
+			{
+				"internalType": "address[3]",
+				"name": "_inspectors",
+				"type": "address[3]"
 			}
 		],
 		"stateMutability": "payable",
@@ -178,27 +165,14 @@ export const qualityContractABI = [
 			},
 			{
 				"indexed": false,
-				"internalType": "string",
-				"name": "comments",
-				"type": "string"
-			}
-		],
-		"name": "CorrectionRequested",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "contractor",
-				"type": "address"
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
 			},
 			{
 				"indexed": false,
 				"internalType": "uint256",
-				"name": "amount",
+				"name": "stage",
 				"type": "uint256"
 			}
 		],
@@ -210,23 +184,10 @@ export const qualityContractABI = [
 		"inputs": [
 			{
 				"indexed": false,
-				"internalType": "address",
-				"name": "contractor",
-				"type": "address"
+				"internalType": "uint256",
+				"name": "stage",
+				"type": "uint256"
 			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "reason",
-				"type": "string"
-			}
-		],
-		"name": "PaymentWithheld",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
 			{
 				"indexed": false,
 				"internalType": "enum QualityCheckAndPayment.QualityStatus",
@@ -244,36 +205,43 @@ export const qualityContractABI = [
 		"type": "event"
 	},
 	{
-		"inputs": [],
-		"name": "releasePayment",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"inputs": [
+			{
+				"components": [
+					{
+						"internalType": "bool",
+						"name": "materialQuality",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "safetyCompliance",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "designSpecs",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "environmentalImpact",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct QualityCheckAndPayment.InspectionChecklist",
+				"name": "_checklist",
+				"type": "tuple"
+			},
 			{
 				"internalType": "string",
 				"name": "_comments",
 				"type": "string"
 			}
 		],
-		"name": "requestCorrection",
+		"name": "checkQuality",
 		"outputs": [],
 		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "contractBalance",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -284,19 +252,6 @@ export const qualityContractABI = [
 				"internalType": "address payable",
 				"name": "",
 				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "fundsLocked",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
 			}
 		],
 		"stateMutability": "view",
@@ -317,19 +272,51 @@ export const qualityContractABI = [
 				"type": "uint8"
 			},
 			{
-				"internalType": "enum QualityCheckAndPayment.PaymentStatus",
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			},
+			{
+				"internalType": "enum QualityCheckAndPayment.InspectionStage",
 				"name": "",
 				"type": "uint8"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "address[3]",
 				"name": "",
-				"type": "uint256"
+				"type": "address[3]"
 			},
 			{
-				"internalType": "uint256",
+				"components": [
+					{
+						"internalType": "bool",
+						"name": "materialQuality",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "safetyCompliance",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "designSpecs",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "environmentalImpact",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct QualityCheckAndPayment.InspectionChecklist",
 				"name": "",
-				"type": "uint256"
+				"type": "tuple"
 			},
 			{
 				"internalType": "string",
@@ -373,19 +360,46 @@ export const qualityContractABI = [
 				"type": "uint8"
 			},
 			{
-				"internalType": "enum QualityCheckAndPayment.PaymentStatus",
-				"name": "payment",
+				"internalType": "uint256",
+				"name": "totalAmount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amountReleased",
+				"type": "uint256"
+			},
+			{
+				"internalType": "enum QualityCheckAndPayment.InspectionStage",
+				"name": "currentStage",
 				"type": "uint8"
 			},
 			{
-				"internalType": "uint256",
-				"name": "paymentAmount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "inspectionDate",
-				"type": "uint256"
+				"components": [
+					{
+						"internalType": "bool",
+						"name": "materialQuality",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "safetyCompliance",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "designSpecs",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "environmentalImpact",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct QualityCheckAndPayment.InspectionChecklist",
+				"name": "checklist",
+				"type": "tuple"
 			},
 			{
 				"internalType": "string",
@@ -399,6 +413,19 @@ export const qualityContractABI = [
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_comments",
+				"type": "string"
+			}
+		],
+		"name": "submitCorrection",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	}
 ]
