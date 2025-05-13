@@ -14,7 +14,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Attendance />} />
             <Route path="/quality" element={<QualityCheck />} />
-            <Route path="/payment" element={<PaymentStatus />} />
+            {/* <Route path="/payment" element={<PaymentStatus />} /> */}
           </Routes>
         </div>
       </div>

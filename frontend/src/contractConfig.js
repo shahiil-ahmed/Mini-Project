@@ -1,4 +1,4 @@
-export const attendanceAddress = "0x07865e6AE0263A98f5B3B66f89E22013575c989D";
+export const attendanceAddress = "0xaad5F766756314b7d46d016d1681b0cffD98EAd2";
 export const attendanceABI =[
 	{
 		"inputs": [],
@@ -131,7 +131,7 @@ export const attendanceABI =[
 		"type": "function"
 	}
 ]
-export const qualityContractAddress  = "0x58Ec404e8ad797cA58459781B316bE12Ba9c2983";
+export const qualityContractAddress  = "0x9140918a7F16621Ef275Dba80FD038290cdA2397";
 export const qualityContractABI =[
 	{
 		"inputs": [
