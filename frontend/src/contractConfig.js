@@ -1,5 +1,5 @@
-export const attendanceAddress = "0xaad5F766756314b7d46d016d1681b0cffD98EAd2";
-export const attendanceABI =[
+export const attendanceAddress = "0x6bC722B08C9fa502e89115340Ac1874b06EE8349";
+export const attendanceABI = [
 	{
 		"inputs": [],
 		"stateMutability": "nonpayable",
@@ -131,8 +131,8 @@ export const attendanceABI =[
 		"type": "function"
 	}
 ]
-export const qualityContractAddress  = "0x9140918a7F16621Ef275Dba80FD038290cdA2397";
-export const qualityContractABI =[
+export const qualityContractAddress  = "0xFB3A14fc9C3A2aFc9047D73E246Bd56647898a64";
+export const qualityContractABI = [
 	{
 		"inputs": [
 			{
